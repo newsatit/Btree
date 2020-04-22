@@ -41,18 +41,17 @@ enum Operator
 	GT		/* Greater Than */
 };
 
-
 /**
  * @brief Number of key slots in B+Tree leaf for INTEGER key.
  */
-//                                                  sibling ptr             key               rid
-const  int INTARRAYLEAFSIZE = ( Page::SIZE - sizeof( PageId ) ) / ( sizeof( int ) + sizeof( RecordId ) );
+//                                                  sibling ptr      numEntries       key               rid
+const  int INTARRAYLEAFSIZE = ( Page::SIZE - sizeof( PageId ) - sizeof( int )) / ( sizeof( int ) + sizeof( RecordId ) );
 
 /**
  * @brief Number of key slots in B+Tree non-leaf for INTEGER key.
  */
-//                                                     level     extra pageNo                  key       pageNo
-const  int INTARRAYNONLEAFSIZE = ( Page::SIZE - sizeof( int ) - sizeof( PageId ) ) / ( sizeof( int ) + sizeof( PageId ) );
+//                                                     level     extra pageNo         numEntries         key             pageNo
+const  int INTARRAYNONLEAFSIZE = ( Page::SIZE - sizeof( int ) - sizeof( PageId ) - sizeof( int) ) / ( sizeof( int ) + sizeof( PageId ) );
 
 /**
  * @brief Structure to store a key-rid pair. It is used to pass the pair to functions that 
@@ -128,6 +127,11 @@ struct IndexMetaInfo{
    * Page number of root page of the B+ Tree inside the file index file.
    */
 	PageId rootPageNo;
+
+  /**
+   * True if the root is leaf
+   */
+	bool leafRoot;
 };
 
 /*
@@ -155,6 +159,11 @@ struct NonLeafNodeInt{
    * Stores page numbers of child pages which themselves are other non-leaf/leaf nodes in the tree.
    */
 	PageId pageNoArray[ INTARRAYNONLEAFSIZE + 1 ];
+
+  /**
+   * Stores number of entries in this node.
+   */
+  int numEntries;
 };
 
 
@@ -177,6 +186,11 @@ struct LeafNodeInt{
 	 * This linking of leaves allows to easily move from one leaf to the next leaf during index scan.
    */
 	PageId rightSibPageNo;
+
+  /**
+   * Stores number of entries in this node.
+   */
+  int numEntries;
 };
 
 
@@ -207,6 +221,11 @@ class BTreeIndex {
    * page number of root page of B+ tree inside index file.
    */
 	PageId	rootPageNum;
+
+  /**
+   * True if the root is leaf
+   */
+	bool leafRoot;
 
   /**
    * Datatype of attribute over which index is built.
