@@ -63,6 +63,25 @@ const void BTreeIndex::startScan(const void* lowValParm,
 				   const Operator highOpParm)
 {
 
+	if(scanExecuting){
+		return;
+	}
+	else{
+
+		scanExecuting = true;
+		lowOp = lowOpParm;
+		highOp = highOpParm;
+		lowValInt = *(int*)lowValParm;
+		highValInt = *(int*)highValParm;
+		
+	}
+
+	//These might not be refrences
+	if (lowValInt > highValInt){
+		throw new BadScanrangeException;
+	}
+
+
 }
 
 // -----------------------------------------------------------------------------
