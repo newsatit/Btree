@@ -1,4 +1,5 @@
 .vscode/
+.idea/
 src/lib/
 src/obj/
-relA
+relA*
