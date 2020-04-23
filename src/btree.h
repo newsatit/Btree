@@ -120,9 +120,9 @@ struct PropogationInfo {
   int middleKey;
 
   /**
-   * True if the the the children of the current node are leaves.
+   * True if the the level that is propogated from is a leaf
    */
-  int leafChildren;
+  int fromLeaf;
 };
 
 /**
@@ -335,6 +335,12 @@ class BTreeIndex {
    * High Operator. Can only be LT(<) or LTE(<=).
    */
 	Operator	highOp;
+
+  // TODO: leaf
+  void splitLeaf(const LeafNodeInt *node, PageId & leftPageNo, PageId & rightPageNo);
+
+  // TODO: nonleaf
+  void splitNonleaf(const NonLeafNodeInt *node, PageId & leftPageNo, PageId & rightPageNo);
 
   /**
    * Helper function that will be called by insertEntry(). Traverse the the coresponding node
