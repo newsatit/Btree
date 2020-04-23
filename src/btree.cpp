@@ -120,6 +120,26 @@ BTreeIndex::BTreeIndex(const std::string & relationName,
 
 BTreeIndex::~BTreeIndex()
 {
+	IndexMetaInfo meta;
+	meta.attrByteOffset = attrByteOffset;
+	meta.attrType = attributeType;
+	meta.rootPageNo = rootPageNum;
+	meta.leafRoot = leafRoot;
+
+	// Update Index meta info to the Index meta info page
+	Page *metaPage;
+	std::string newMetaRecord(reinterpret_cast<char*>(&meta), sizeof(meta));
+	bufMgr->readPage(file, headerPageNum, metaPage);
+	metaPage->updateRecord(METARECORDID, newMetaRecord);
+	bufMgr->unPinPage(file, headerPageNum, true);
+
+	// Unpin page that is currently scanning
+	if (currentPageNum) {
+		bufMgr->unPinPage(file, currentPageNum, false);
+	}
+
+	bufMgr->flushFile(file);
+	delete file;
 }
 
 // -----------------------------------------------------------------------------
