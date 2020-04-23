@@ -71,21 +71,23 @@ BTreeIndex::BTreeIndex(const std::string & relationName,
 		Page *metaPage;
 		bufMgr->allocPage(file, headerPageNum, metaPage);
 		std::cout << "metaPageNum: " << headerPageNum << std::endl;
-
-		// allocate page for root
-		// TODO: initialize root node struct
-		Page *rootPage;
-		bufMgr->allocPage(file, rootPageNum, rootPage);
-		leafRoot = true;
-		std::cout << "rootPageNum: " << rootPageNum << std::endl;
-
 		// populate meta info with the root page num
-		IndexMetaInfo *meta = (IndexMetaInfo*)(rootPage);
+		IndexMetaInfo *meta = (IndexMetaInfo*)(metaPage);
 		meta->attrByteOffset = attrByteOffset;
 		meta->attrType = attributeType;
 		meta->rootPageNo = rootPageNum;
 		meta->leafRoot = true;
-	
+
+		// allocate page for root
+		leafRoot = true; // root is the only node and is a leaf.
+		Page *rootPage;
+		bufMgr->allocPage(file, rootPageNum, rootPage);
+		std::cout << "rootPageNum: " << rootPageNum << std::endl;
+		// initialize root node
+		LeafNodeInt *root = (LeafNodeInt*)(rootPage);
+		root->numEntries = 0;
+		root->rightSibPageNo = 0;
+		
 		// scan the file with the relation data (use FileScan) and keep the entries <key, rid>		FileScan fscan(relationName, bufMgr);
 		FileScan fscan(relationName, bufMgr);
 		try
@@ -141,10 +143,39 @@ BTreeIndex::~BTreeIndex()
 // -----------------------------------------------------------------------------
 // BTreeIndex::insertEntry
 // -----------------------------------------------------------------------------
+void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePageNo, const int nodeType, 
+															PropogationInfo & propInfo, bool & splitted)
+{
+}
+
+// -----------------------------------------------------------------------------
+// BTreeIndex::insertEntry
+// -----------------------------------------------------------------------------
 
 const void BTreeIndex::insertEntry(const void *key, const RecordId rid) 
 {
+	PropogationInfo propInfo;
+	bool splitted;
+	RIDKeyPair<int> ridKey;
+	ridKey.set(rid, *((int*)(key)));
 
+	int nodeType = leafRoot ? 1 : 0;
+	insertHelper(ridKey, rootPageNum, leafRoot, propInfo, splitted); // Start traversing the root page.
+
+	if (splitted) { // Have to create new root page
+		Page *rootPage;
+		bufMgr->allocPage(file, rootPageNum, rootPage); // Allocate new root page
+		
+		// Set up content of the root page.
+		NonLeafNodeInt *root = (NonLeafNodeInt*)(rootPage);
+		root->level = propInfo.leafChildren;
+		root->numEntries = 1;
+		root->keyArray[0] = propInfo.middleKey;
+		root->pageNoArray[0] = propInfo.leftPageNo;
+		root->pageNoArray[1] = propInfo.rightPageNo;
+
+		bufMgr->unPinPage(file, rootPageNum, true);
+	} 
 }
 
 // -----------------------------------------------------------------------------
