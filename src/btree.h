@@ -42,11 +42,6 @@ enum Operator
 };
 
 /**
- * @brief Record id of the index meta info
- */
-const RecordId METARECORDID = RecordId{0, 1};
-
-/**
  * @brief Number of key slots in B+Tree leaf for INTEGER key.
  */
 //                                                  sibling ptr      numEntries       key               rid

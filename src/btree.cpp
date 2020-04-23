@@ -45,24 +45,22 @@ BTreeIndex::BTreeIndex(const std::string & relationName,
 	this->attrByteOffset = attrByteOffset;
 	scanExecuting = false;
 	
-	IndexMetaInfo meta;
 	try {
 		file = new BlobFile(outIndexName, false); // Try opening existing index file
 
 		// use existing file
 		std::cout << "Open exisitng Index File" << outIndexName << std::endl;
+
 		// Read meta page
 		Page *metaPage;
 		bufMgr->readPage(file, headerPageNum, metaPage);
 
 		// Set up rootPageNo and leafRoot from IndexMetaInfo
-		std::string metaRecord = metaPage->getRecord(METARECORDID);
-    meta = *reinterpret_cast<const IndexMetaInfo*>(metaRecord.data());
-		
-		rootPageNum = meta.rootPageNo;
-		leafRoot = meta.leafRoot;
+		IndexMetaInfo *meta = (IndexMetaInfo*)metaPage;
+		rootPageNum = meta->rootPageNo;
+		leafRoot = meta->leafRoot;
 
-		bufMgr->unPinPage(file, headerPageNum, false);
+		bufMgr->unPinPage(file, headerPageNum, false); // Meta Info page no longer needed
 
 	} catch(FileNotFoundException e) {
 		// have to create new file
@@ -75,18 +73,18 @@ BTreeIndex::BTreeIndex(const std::string & relationName,
 		std::cout << "metaPageNum: " << headerPageNum << std::endl;
 
 		// allocate page for root
+		// TODO: initialize root node struct
 		Page *rootPage;
 		bufMgr->allocPage(file, rootPageNum, rootPage);
 		leafRoot = true;
 		std::cout << "rootPageNum: " << rootPageNum << std::endl;
 
 		// populate meta info with the root page num
-		meta.attrByteOffset = attrByteOffset;
-		meta.attrType = attributeType;
-		meta.rootPageNo = rootPageNum;
-		meta.leafRoot = true;
-		std::string metaRecord(reinterpret_cast<char*>(&meta),sizeof(meta));
-		metaPage->insertRecord(metaRecord);
+		IndexMetaInfo *meta = (IndexMetaInfo*)(rootPage);
+		meta->attrByteOffset = attrByteOffset;
+		meta->attrType = attributeType;
+		meta->rootPageNo = rootPageNum;
+		meta->leafRoot = true;
 	
 		// scan the file with the relation data (use FileScan) and keep the entries <key, rid>		FileScan fscan(relationName, bufMgr);
 		FileScan fscan(relationName, bufMgr);
@@ -120,17 +118,15 @@ BTreeIndex::BTreeIndex(const std::string & relationName,
 
 BTreeIndex::~BTreeIndex()
 {
-	IndexMetaInfo meta;
-	meta.attrByteOffset = attrByteOffset;
-	meta.attrType = attributeType;
-	meta.rootPageNo = rootPageNum;
-	meta.leafRoot = leafRoot;
-
 	// Update Index meta info to the Index meta info page
 	Page *metaPage;
-	std::string newMetaRecord(reinterpret_cast<char*>(&meta), sizeof(meta));
+	IndexMetaInfo *meta;
 	bufMgr->readPage(file, headerPageNum, metaPage);
-	metaPage->updateRecord(METARECORDID, newMetaRecord);
+	meta = (IndexMetaInfo*)(metaPage);
+	meta->attrByteOffset = attrByteOffset;
+	meta->attrType = attributeType;
+	meta->rootPageNo = rootPageNum;
+	meta->leafRoot = leafRoot;
 	bufMgr->unPinPage(file, headerPageNum, true);
 
 	// Unpin page that is currently scanning
