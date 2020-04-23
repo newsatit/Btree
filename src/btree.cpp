@@ -177,6 +177,14 @@ const void BTreeIndex::startScan(const void* lowValParm,
 	if (lowValInt > highValInt){
 		throw new BadScanrangeException;
 	}
+
+	// get meta page and meta info
+	Page* meta;
+	bufMgr->readPage(file, headerPageNum, meta);
+	IndexMetaInfo* metaPage = (IndexMetaInfo*)meta;
+
+	PageId rootNum = metaPage->rootPageNo;
+
 }
 
 
