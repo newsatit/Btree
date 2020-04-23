@@ -183,12 +183,93 @@ const void BTreeIndex::startScan(const void* lowValParm,
 	bufMgr->readPage(file, headerPageNum, meta);
 	IndexMetaInfo* metaPage = (IndexMetaInfo*)meta;
 
-	PageId rootNum = metaPage->rootPageNo;
+	rootPageNum = metaPage->rootPageNo;
 
+	// if the root node is the only node in the tree
+	if (metaPage->leafRoot){
+
+		bufMgr->readPage(file, rootPageNum, currentPageData);
+		LeafNodeInt* currentLeafRoot = (LeafNodeInt*) currentPageData;
+
+		// [1, 3, 5, 7, 12] >=5  nextEntry: 1
+		for (int i = 0; i < INTARRAYNONLEAFSIZE; i++){
+
+			if (lowOp == GTE && currentLeafRoot->keyArray[i] >= lowValInt){
+				nextEntry = i;
+				break;
+			}
+
+			if(lowOp == GT && currentLeafRoot->keyArray[i] > lowValInt){
+				nextEntry = i;
+				break;
+			}
+		}
+
+	}
+
+	// If the root node is not a leaf and not the only node in tree
+	else {
+		
+		// start at root
+		bufMgr->readPage(file, rootPageNum, currentPageData);
+		currentPageNum = rootPageNum;
+		NonLeafNodeInt* currentNode = (NonLeafNodeInt*) currentPageData;
+
+		while (currentNode->level != 1){
+
+		
+			// [1, 3, 5]  GT 2  nextEntry: 1
+		//[0], [1, 2], [4], [5, 6]
+			for (int i = 0; i < INTARRAYNONLEAFSIZE; i++){
+
+				if(lowValInt >= currentNode->keyArray[i]){
+					if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
+						nextEntry = i;
+						return;
+					}
+					nextEntry = i;
+				}
+			}
+			
+			//unpin old page and read new page number
+			PageId nextId = currentNode->pageNoArray[nextEntry+1];
+			bufMgr->unPinPage(file, currentPageNum, false);
+			bufMgr->readPage(file, nextId, currentPageData);
+	    	currentNode = (NonLeafNodeInt*) currentPageData;
+			currentPageNum = nextId;
+		}
+
+		for (int i = 0; i < INTARRAYNONLEAFSIZE; i++){
+
+			if(lowValInt >= currentNode->keyArray[i]){
+				if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
+					nextEntry = i;
+					return;
+				}
+				nextEntry = i;
+			}
+		}
+		
+		//unpin old page and read new page number
+		PageId nextId = currentNode->pageNoArray[nextEntry+1];
+		bufMgr->unPinPage(file, currentPageNum, false);
+		bufMgr->readPage(file, nextId, currentPageData);
+		currentNode = (NonLeafNodeInt*) currentPageData;
+		LeafNodeInt* currentNodeLeaf = (LeafNodeInt*) currentPageData;
+	
+
+		for (int i = 0; i < INTARRAYNONLEAFSIZE; i++){
+
+			if(lowValInt >= currentNode->keyArray[i]){
+				if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
+					nextEntry = i;
+					return;
+				}
+				nextEntry = i;
+			}
+		}
+	}
 }
-
-
-
 
 
 // -----------------------------------------------------------------------------
@@ -197,6 +278,7 @@ const void BTreeIndex::startScan(const void* lowValParm,
 
 const void BTreeIndex::scanNext(RecordId& outRid) 
 {
+	// dfs traversal until number outside of range
 
 }
 
