@@ -32,7 +32,85 @@ BTreeIndex::BTreeIndex(const std::string & relationName,
 		const int attrByteOffset,
 		const Datatype attrType)
 {
+	bufMgr = bufMgrIn;
+	headerPageNum = 1;
 
+	// Create name of the index file
+	std::ostringstream idxStr;
+	idxStr << relationName << '.' << attrByteOffset;
+	outIndexName = idxStr.str();
+
+	// Set up object attributes
+	attributeType = attrType;
+	this->attrByteOffset = attrByteOffset;
+	scanExecuting = false;
+	
+	IndexMetaInfo meta;
+	try {
+		file = new BlobFile(outIndexName, false); // Try opening existing index file
+
+		// use existing file
+		std::cout << "Open exisitng Index File" << outIndexName << std::endl;
+		// Read meta page
+		Page *metaPage;
+		bufMgr->readPage(file, headerPageNum, metaPage);
+
+		// Set up rootPageNo and leafRoot from IndexMetaInfo
+		std::string metaRecord = metaPage->getRecord(METARECORDID);
+    meta = *reinterpret_cast<const IndexMetaInfo*>(metaRecord.data());
+		
+		rootPageNum = meta.rootPageNo;
+		leafRoot = meta.leafRoot;
+
+		bufMgr->unPinPage(file, headerPageNum, false);
+
+	} catch(FileNotFoundException e) {
+		// have to create new file
+		std::cout << "Creating new index file" << outIndexName << std::endl;
+		file = new BlobFile(outIndexName, true);
+
+		// allocate page for meta info
+		Page *metaPage;
+		bufMgr->allocPage(file, headerPageNum, metaPage);
+		std::cout << "metaPageNum: " << headerPageNum << std::endl;
+
+		// allocate page for root
+		Page *rootPage;
+		bufMgr->allocPage(file, rootPageNum, rootPage);
+		leafRoot = true;
+		std::cout << "rootPageNum: " << rootPageNum << std::endl;
+
+		// populate meta info with the root page num
+		meta.attrByteOffset = attrByteOffset;
+		meta.attrType = attributeType;
+		meta.rootPageNo = rootPageNum;
+		meta.leafRoot = true;
+		std::string metaRecord(reinterpret_cast<char*>(&meta),sizeof(meta));
+		metaPage->insertRecord(metaRecord);
+	
+		// scan the file with the relation data (use FileScan) and keep the entries <key, rid>		FileScan fscan(relationName, bufMgr);
+		FileScan fscan(relationName, bufMgr);
+		try
+		{
+			RecordId scanRid;
+			while(1)
+			{
+				fscan.scanNext(scanRid);
+				std::string recordStr = fscan.getRecord();
+				const char *record = recordStr.c_str();
+				void *key = (void*)(record + attrByteOffset);
+				// TODO: add the data in the index
+				insertEntry(key, scanRid);
+			}
+		}
+		catch(EndOfFileException e)
+		{
+			std::cout << "Finish inserted all to B+ Tree records" << std::endl;
+		}
+
+		bufMgr->unPinPage(file, headerPageNum, true);
+		bufMgr->unPinPage(file, rootPageNum, false);
+	}
 }
 
 
