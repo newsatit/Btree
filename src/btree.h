@@ -100,6 +100,32 @@ bool operator<( const RIDKeyPair<T>& r1, const RIDKeyPair<T>& r2 )
 }
 
 /**
+ * @brief Structure for all information that is necessary for handling the propogation of 
+ * the split from the node's children.
+ */
+struct PropogationInfo {
+  /**
+   * Left pageId of the new left page.
+   */
+  PageId leftPageNo;
+
+  /**
+   * Right pageId of the new left page.
+   */
+  PageId rightPageNo;
+
+  /**
+   * The middle key after the split.
+   */
+  int middleKey;
+
+  /**
+   * True if the the level that is propogated from is a leaf
+   */
+  int fromLeaf;
+};
+
+/**
  * @brief The meta page, which holds metadata for Index file, is always first page of the btree index file and is cast
  * to the following structure to store or retrieve information from it.
  * Contains the relation name for which the index is created, the byte offset
@@ -310,6 +336,20 @@ class BTreeIndex {
    */
 	Operator	highOp;
 
+  /**
+   * Helper function that will be called by insertEntry(). Traverse the the coresponding node
+   * given the insert (key, rid). Also, take care of the split of the node with nodePid page number and
+   * the propogation from children nodes' splits.
+   *
+   * @param ridKey        RIDKeyPair of the entry to be inserted.
+   * @param nodePageNo    PageId of the node that is going to be traversed.
+   * @param nodeType      Type of node to be traversed. 1 if leaf, 0 if nonleaf.
+   * @param propInfo      Reference to the PropogationInfo for handling propogation in the node Page with nodePid.
+   * @param splitted      True if the node with nodePid is splitted.
+   *
+   */
+  void insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePageNo, const int nodeType,
+                    PropogationInfo & propInfo, bool & splitted);
 	
  public:
 
