@@ -350,12 +350,44 @@ const void BTreeIndex::insertEntry(const void *key, const RecordId rid)
 // -----------------------------------------------------------------------------
 
 const void BTreeIndex::startScan(const void* lowValParm,
-				   const Operator lowOpParm,
-				   const void* highValParm,
-				   const Operator highOpParm)
+   const Operator lowOpParm,
+   const void* highValParm,
+   const Operator highOpParm)
 {
 
+	if(scanExecuting){
+		return;
+	}
+	else{
+
+	scanExecuting = true;
+	lowOp = lowOpParm;
+	highOp = highOpParm;
+	lowValInt = *(int*)lowValParm;
+	highValInt = *(int*)highValParm;
+
+	}
+
+	if ((lowOpParm != GTE && lowOpParm != GT) || (highOpParm != LT && highOpParm != LTE )){
+		throw new BadOpcodesException;
+	}
+
+	if (lowValInt > highValInt){
+		throw new BadScanrangeException;
+	}
+
+	// get meta page and meta info
+	Page* meta;
+	bufMgr->readPage(file, headerPageNum, meta);
+	IndexMetaInfo* metaPage = (IndexMetaInfo*)meta;
+
+	PageId rootNum = metaPage->rootPageNo;
+
 }
+
+
+
+
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::scanNext
