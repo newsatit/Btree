@@ -336,12 +336,6 @@ class BTreeIndex {
    */
 	Operator	highOp;
 
-  // TODO: leaf
-  void splitLeaf(const LeafNodeInt *node, PageId & leftPageNo, PageId & rightPageNo);
-
-  // TODO: nonleaf
-  void splitNonleaf(const NonLeafNodeInt *node, PageId & leftPageNo, PageId & rightPageNo);
-
   /**
    * Helper function that will be called by insertEntry(). Traverse the the coresponding node
    * given the insert (key, rid). Also, take care of the split of the node with nodePid page number and

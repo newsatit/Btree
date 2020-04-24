@@ -99,7 +99,6 @@ BTreeIndex::BTreeIndex(const std::string & relationName,
 				std::string recordStr = fscan.getRecord();
 				const char *record = recordStr.c_str();
 				void *key = (void*)(record + attrByteOffset);
-				// TODO: add the data in the index
 				insertEntry(key, scanRid);
 				std::cout << "Inserted key: " << *((int*)key) << " rid: (" << scanRid.page_number << ", " << scanRid.slot_number << ")" << std::endl;
 			}
@@ -190,7 +189,6 @@ void insertNonleafArrays(const PropogationInfo propInfo, const int insertIdx,
 void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePageNo, const int nodeType, 
 															PropogationInfo & propInfo, bool & splitted)
 {
-	//TODO: take care of level
 	Page *page;
 	bufMgr->readPage(file, nodePageNo, page);
 
@@ -205,13 +203,14 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			RecordId tempRidArray[ INTARRAYLEAFSIZE + 1];
 			std::copy(node->keyArray, node->keyArray + node->numEntries, tempKeyArray);
 			std::copy(node->ridArray, node->ridArray + node->numEntries, tempRidArray);
-			insertLeafArrays(ridKey, node->keyArray, node->ridArray, node->numEntries);
+			insertLeafArrays(ridKey, tempKeyArray, tempRidArray, node->numEntries);
 
 			// Distrubute entries to both nodes
-			Page *leftPage, *rightPage;
-			bufMgr->allocPage(file, propInfo.leftPageNo, leftPage);
+			// Allocate right page. Left page will used the page allocated by the original page.
+			Page *rightPage;
+			propInfo.leftPageNo = nodePageNo;
 			bufMgr->allocPage(file, propInfo.rightPageNo, rightPage);
-			LeafNodeInt *leftNode = (LeafNodeInt*)(leftPage);
+			LeafNodeInt *leftNode = node;
 			LeafNodeInt *rightNode = (LeafNodeInt*)(rightPage);
 			leftNode->numEntries = (node->numEntries+1-1)/2;
 			rightNode->numEntries = (node->numEntries+1-1) - leftNode->numEntries;
@@ -225,8 +224,8 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			std::copy(tempRidArray + leftNode->numEntries, tempRidArray + node->numEntries + 1, rightNode->ridArray);
 
 			// Set up sibling of both page
-			leftNode->rightSibPageNo = propInfo.rightPageNo;
 			rightNode->rightSibPageNo = node->rightSibPageNo;
+			leftNode->rightSibPageNo = propInfo.rightPageNo;
 
 			// Set up necessary info for propogation
 			propInfo.middleKey = rightNode->keyArray[0];
@@ -235,7 +234,6 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			// Get rid of old page node and unpin new pages
 			bufMgr->unPinPage(file, propInfo.leftPageNo, true);
 			bufMgr->unPinPage(file, propInfo.rightPageNo, true);
-			bufMgr->disposePage(file, nodePageNo);
 
 		// Leaf Node is not full
 		} else {
@@ -275,10 +273,11 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			insertNonleafArrays(childPropInfo, insertIdx, tempKeyArray, tempPageNoArray, node->numEntries);
 
 			// Distrubute entries to both nodes
-			Page *leftPage, *rightPage;
-			bufMgr->allocPage(file, propInfo.leftPageNo, leftPage);
+			// Allocate right page. Left page will used the page allocated by the original page.
+			Page *rightPage;
+			propInfo.leftPageNo = nodePageNo; 
 			bufMgr->allocPage(file, propInfo.rightPageNo, rightPage);
-			NonLeafNodeInt *leftNode = (NonLeafNodeInt*)(leftPage);
+			NonLeafNodeInt *leftNode = node;
 			NonLeafNodeInt *rightNode = (NonLeafNodeInt*)(rightPage);
 			leftNode->numEntries = (node->numEntries+1)/2;
 			rightNode->numEntries = (node->numEntries+1) - leftNode->numEntries;
@@ -302,7 +301,6 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			// Get rid of old page node and unpin new pages
 			bufMgr->unPinPage(file, propInfo.leftPageNo, true);
 			bufMgr->unPinPage(file, propInfo.rightPageNo, true);
-			bufMgr->disposePage(file, nodePageNo);
 
 			// Nonleaf node is not full
 			} else {
