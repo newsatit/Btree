@@ -220,12 +220,11 @@ const void BTreeIndex::startScan(const void* lowValParm,
 		
 			// [1, 3, 5]  GT 2  nextEntry: 1
 		//[0], [1, 2], [4], [5, 6]
-			for (int i = 0; i < INTARRAYNONLEAFSIZE; i++){
+			for (int i = 0; i < currentNode->numEntries; i++){
 
 				if(lowValInt >= currentNode->keyArray[i]){
 					if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
 						nextEntry = i;
-						return;
 					}
 					nextEntry = i;
 				}
@@ -239,34 +238,51 @@ const void BTreeIndex::startScan(const void* lowValParm,
 			currentPageNum = nextId;
 		}
 
-		for (int i = 0; i < INTARRAYNONLEAFSIZE; i++){
+		for (int i = 0; i < currentNode->numEntries; i++){
 
 			if(lowValInt >= currentNode->keyArray[i]){
 				if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
 					nextEntry = i;
-					return;
 				}
 				nextEntry = i;
 			}
 		}
-		
+
 		//unpin old page and read new page number
 		PageId nextId = currentNode->pageNoArray[nextEntry+1];
 		bufMgr->unPinPage(file, currentPageNum, false);
 		bufMgr->readPage(file, nextId, currentPageData);
-		currentNode = (NonLeafNodeInt*) currentPageData;
 		LeafNodeInt* currentNodeLeaf = (LeafNodeInt*) currentPageData;
-	
+		currentPageNum = nextId;
 
-		for (int i = 0; i < INTARRAYNONLEAFSIZE; i++){
+		bool found = false;
+		while(!found){
+			for (int i = 0; i < currentNode->numEntries; i++){
 
-			if(lowValInt >= currentNode->keyArray[i]){
-				if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
+				if(lowOp == GT && lowValInt < currentNode->keyArray[i]){
 					nextEntry = i;
 					return;
 				}
-				nextEntry = i;
+				else if(lowOp == GTE && lowValInt <= currentNode->keyArray[i]){
+					nextEntry = i;
+					return;
+				}
+    		    else if((highOp == LT and currentNode->keyArray[i] >= highValInt) or (highOp == LTE and currentNode->keyArray[i] > highValInt))
+				{
+					bufMgr->unPinPage(file, currentPageNum, false);
+					throw NoSuchKeyFoundException();
+				}
 			}
+	        //unpin page
+			bufMgr->unPinPage(file, currentPageNum, false);
+			//did not find the matching one in the most right leaf
+			if(currentNodeLeaf->rightSibPageNo == 0){
+
+				throw NoSuchKeyFoundException();
+			
+			}
+			currentPageNum = currentNodeLeaf->rightSibPageNo;
+			bufMgr->readPage(file, currentPageNum, currentPageData);
 		}
 	}
 }
