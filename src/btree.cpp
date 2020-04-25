@@ -443,6 +443,7 @@ const void BTreeIndex::startScan(const void* lowValParm,
 			if(lowValInt >= currentNode->keyArray[i]){
 				if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
 					nextEntry = i;
+					break;
 				}
 				nextEntry = i;
 			}
@@ -505,7 +506,7 @@ const void BTreeIndex::scanNext(RecordId& outRid)
     // Cast page to leaf node
     LeafNodeInt* currentNode = (LeafNodeInt*)currentPageData;
     // if the next entry exceeds a leaf's key occupancy or the page is
-    if (nextEntry == leafOccupancy || currentNode->ridArray[nextEntry].page_number == 0) {
+    if (nextEntry == currentNode->numEntries) {
         // unpin the page
         bufMgr->unPinPage(file, currentPageNum, false);
         // get the sibling
