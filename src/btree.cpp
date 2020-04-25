@@ -488,12 +488,62 @@ const void BTreeIndex::startScan(const void* lowValParm,
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::scanNext
+// - Returns (via the outRid parameter) the RecordId of the next record from the relation being scanned. 
+// - It throws EndOfFileException() when the end of relation is reached.
 // -----------------------------------------------------------------------------
 
 const void BTreeIndex::scanNext(RecordId& outRid) 
 {
-	// dfs traversal until number outside of range
+    // Ensure scan is currently executing
+    if(!scanExecuting)
+    {
+        throw ScanNotInitializedException();
+    }
 
+    // Cast page to leaf node
+    LeafNodeInt* currentNode = (LeafNodeInt*)currentPageData;
+    // if the next entry exceeds a leaf's key occupancy or the page is
+    if (nextEntry == leafOccupancy || currentNode->ridArray[nextEntry].page_number == 0) {
+        // unpin the page
+        bufMgr->unPinPage(file, currentPageNum, false);
+        // get the sibling
+        currentPageNum = currentNode->rightSibPageNo;
+        // if there isn't another node
+        if(currentPageNum == 0)
+        {
+            throw IndexScanCompletedException();
+        }
+        else {
+            // reset the entry
+            nextEntry = 0;
+            // read next page, update node
+            bufMgr->readPage(file, currentPageNum, currentPageData);
+            currentNode = (LeafNodeInt*)currentPageData;
+        }
+
+    }
+    // get current key
+    int currentKey = currentNode->keyArray[nextEntry];
+    // check if key is in valid range
+    if(lowOp == GT && highOp == LT && !(currentKey > lowValInt && currentKey < highValInt))
+    {
+        throw IndexScanCompletedException();
+    }
+    else if(lowOp == GT && highOp == LTE && !(currentKey > lowValInt && currentKey <= highValInt ))
+    {
+        throw IndexScanCompletedException();
+    }
+    else if(lowOp == GTE && highOp == LT && !(currentKey >= lowValInt && currentKey < highValInt))
+    {
+        throw IndexScanCompletedException();
+    }
+    else if (lowOp == GTE && highOp == LTE && !(currentKey >= lowValInt && currentKey <= highValInt ))
+    {
+        throw IndexScanCompletedException();
+    }
+    outRid = currentNode->ridArray[nextEntry];
+    // set next entry
+    nextEntry++;
 }
 
 // -----------------------------------------------------------------------------
@@ -502,7 +552,15 @@ const void BTreeIndex::scanNext(RecordId& outRid)
 //
 const void BTreeIndex::endScan() 
 {
-
+    // Check Exceptions
+    if(!scanExecuting)
+    {
+        throw ScanNotInitializedException();
+    }
+    // unpin the page
+    bufMgr->unPinPage(file, currentPageNum, false);
+    // set scan to not executing
+    scanExecuting = false;
 }
 
 }
