@@ -424,6 +424,7 @@ const void BTreeIndex::startScan(const void* lowValParm,
 				if(lowValInt >= currentNode->keyArray[i]){
 					if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
 						nextEntry = i;
+						break;
 					}
 					nextEntry = i;
 				}
