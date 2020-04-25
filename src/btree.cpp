@@ -346,6 +346,24 @@ const void BTreeIndex::insertEntry(const void *key, const RecordId rid)
 	} 
 }
 
+const void BTreeIndex::findBestChild(NonLeafNodeInt *currentNode, PageId &nextNodeNum, int lowVal)
+{
+	int j = 0;
+
+	while(j <= currentNode->numEntries && currentNode->pageNoArray[j] == 0)
+	{
+		j++;
+	}
+	// TODO might need to change if the thing is GTE
+	while(j < currentNode->numEntries && currentNode->keyArray[j-1] <= lowVal)
+	{
+		j++;
+	}
+
+  nextNodeNum = currentNode->pageNoArray[j];
+
+}
+
 // -----------------------------------------------------------------------------
 // BTreeIndex::startScan
 // -----------------------------------------------------------------------------
@@ -383,6 +401,7 @@ const void BTreeIndex::startScan(const void* lowValParm,
 	IndexMetaInfo* metaPage = (IndexMetaInfo*)meta;
 
 	rootPageNum = metaPage->rootPageNo;
+	std::cout << rootPageNum << std::endl;
 
 	// if the root node is the only node in the tree
 	if (metaPage->leafRoot){
@@ -409,85 +428,181 @@ const void BTreeIndex::startScan(const void* lowValParm,
 	// If the root node is not a leaf and not the only node in tree
 	else {
 		
-		// start at root
 		bufMgr->readPage(file, rootPageNum, currentPageData);
 		currentPageNum = rootPageNum;
 		NonLeafNodeInt* currentNode = (NonLeafNodeInt*) currentPageData;
 
-		while (currentNode->level != 1){
+		bool leaf = false;
 
-		
-			// [1, 3, 5]  GT 2  nextEntry: 1
-		//[0], [1, 2], [4], [5, 6]
-			for (int i = 0; i < currentNode->numEntries; i++){
+		//find leaf
+		while(!leaf){
+			std::cout << "Find Leaf Loop, Level: " << currentNode->level << std::endl;
 
-				if(lowValInt >= currentNode->keyArray[i]){
-					if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
+			currentNode = (NonLeafNodeInt*) currentPageData;
+
+			if (currentNode->level == 1){
+
+				leaf = true;
+
+			}
+			PageId nextId;
+			findBestChild(currentNode, nextId, lowValInt);
+			bufMgr->unPinPage(file, currentPageNum, false);
+			currentPageNum = nextId;
+			bufMgr->readPage(file, currentPageNum, currentPageData);
+
+		}
+		//find best in leaf
+		bool findBest = false;
+		while(!findBest){
+			//std::cout << "Find best Loop, Level: " << currentNode->level << std::endl;
+
+
+			LeafNodeInt* currentNode = (LeafNodeInt*) currentPageData;
+
+			// if the leaf page is null throw exception
+			if(currentNode->ridArray[0].page_number == 0){
+
+				bufMgr->unPinPage(file, currentPageNum, false);
+      			throw NoSuchKeyFoundException();
+
+			}
+			// TODO maybe check to see if its the last one cause that could be empty
+			for (int i = 0; i < leafOccupancy && currentNode->ridArray[i + 1].page_number == 0; i++){
+				//different satisfactory requirements
+				if(lowOp == GTE && highOp == LTE){
+					if(currentNode->keyArray[i] >= lowValInt && currentNode->keyArray[i] <= highValInt){
+						findBest = true;
 						nextEntry = i;
 						break;
 					}
-					nextEntry = i;
 				}
-			}
-			
-			//unpin old page and read new page number
-			PageId nextId = currentNode->pageNoArray[nextEntry+1];
-			bufMgr->unPinPage(file, currentPageNum, false);
-			bufMgr->readPage(file, nextId, currentPageData);
-	    	currentNode = (NonLeafNodeInt*) currentPageData;
-			currentPageNum = nextId;
-		}
-
-		for (int i = 0; i < currentNode->numEntries; i++){
-
-			if(lowValInt >= currentNode->keyArray[i]){
-				if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
-					nextEntry = i;
-					break;
+				else if(lowOp == GT && highOp == LTE){
+					if(currentNode->keyArray[i] > lowValInt && currentNode->keyArray[i] <= highValInt){
+						findBest = true;
+						nextEntry = i;
+						break;
+					}
 				}
-				nextEntry = i;
-			}
-		}
-
-		//unpin old page and read new page number
-		PageId nextId = currentNode->pageNoArray[nextEntry+1];
-		bufMgr->unPinPage(file, currentPageNum, false);
-		bufMgr->readPage(file, nextId, currentPageData);
-		LeafNodeInt* currentNodeLeaf = (LeafNodeInt*) currentPageData;
-		currentPageNum = nextId;
-
-		bool found = false;
-		while(!found){
-			for (int i = 0; i < currentNode->numEntries; i++){
-
-				if(lowOp == GT && lowValInt < currentNode->keyArray[i]){
-					nextEntry = i;
-					return;
+				else if(lowOp == GTE && highOp == LT){
+					if(currentNode->keyArray[i] >= lowValInt && currentNode->keyArray[i] < highValInt){
+						findBest = true;
+						nextEntry = i;
+						break;
+					}
 				}
-				else if(lowOp == GTE && lowValInt <= currentNode->keyArray[i]){
-					nextEntry = i;
-					return;
-				}
-    		    else if((highOp == LT and currentNode->keyArray[i] >= highValInt) or (highOp == LTE and currentNode->keyArray[i] > highValInt))
-				{
+				else if(lowOp == GT && highOp == LT){
+					if(currentNode->keyArray[i] > lowValInt && currentNode->keyArray[i] < highValInt){
+						findBest = true;
+						nextEntry = i;
+						break;
+					}
+				}	
+
+				//keys get too high
+				else if(highOp == LT && currentNode->keyArray[i] >= highValInt){
 					bufMgr->unPinPage(file, currentPageNum, false);
 					throw NoSuchKeyFoundException();
 				}
-			}
-	        //unpin page
-			bufMgr->unPinPage(file, currentPageNum, false);
-			//did not find the matching one in the most right leaf
-			if(currentNodeLeaf->rightSibPageNo == 0){
+				else if(highOp == LTE && currentNode->keyArray[i] > highValInt){
+					bufMgr->unPinPage(file, currentPageNum, false);
+					throw NoSuchKeyFoundException();
+				}
 
-				throw NoSuchKeyFoundException();
-			
+				//no valid key in leaf so go to next		
+				else if(currentNode->ridArray[i + 1].page_number == 0 || i == leafOccupancy-1){
+					bufMgr->unPinPage(file, currentPageNum, false);
+
+					// must check to see if leaf has sibling
+					if(currentNode->rightSibPageNo == 0){
+						throw NoSuchKeyFoundException();
+					}
+					else {
+						currentPageNum = currentNode->rightSibPageNo;
+						bufMgr->readPage(file, currentPageNum, currentPageData);
+					}
+				}
 			}
-			currentPageNum = currentNodeLeaf->rightSibPageNo;
-			bufMgr->readPage(file, currentPageNum, currentPageData);
+
 		}
 	}
 }
 
+// 		// start at root
+// 		std::cout << "Num Level: " << currentNode->level << std::endl;
+// 		while (currentNode->level != 1){
+
+// 			std::cout << "Num Entry: " << currentNode->numEntries << std::endl;
+// 			std::cout << "rootPageNum" << rootPageNum << std::endl;
+
+// 			for (int i = 0; i < currentNode->numEntries; i++){
+
+// 				if(lowValInt >= currentNode->keyArray[i]){
+// 					if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
+// 						nextEntry = i;
+// 						break;
+// 					}
+// 					nextEntry = i;
+// 				}
+// 			}
+			
+// 			//unpin old page and read new page number
+// 			nextId = currentNode->pageNoArray[nextEntry+1];
+// 			bufMgr->unPinPage(file, currentPageNum, false);
+// 			bufMgr->readPage(file, nextId, currentPageData);
+// 	    	currentNode = (NonLeafNodeInt*) currentPageData;
+// 			currentPageNum = nextId;
+// 		}
+
+// 		for (int i = 0; i < currentNode->numEntries; i++){
+
+// 			if(lowValInt >= currentNode->keyArray[i]){
+// 				if(lowOp == GTE && lowValInt == currentNode->keyArray[i]){
+// 					nextEntry = i;
+// 					break;
+// 				}
+// 				nextEntry = i;
+// 			}
+// 		}
+
+// 		//unpin old page and read new page number
+// 		nextId = currentNode->pageNoArray[nextEntry+1];
+// 		bufMgr->unPinPage(file, currentPageNum, false);
+// 		bufMgr->readPage(file, nextId, currentPageData);
+// 		LeafNodeInt* currentNodeLeaf = (LeafNodeInt*) currentPageData;
+// 		currentPageNum = nextId;
+
+// 		bool found = false;
+// 		while(!found){
+// 			for (int i = 0; i < currentNode->numEntries; i++){
+
+// 				if(lowOp == GT && lowValInt < currentNode->keyArray[i]){
+// 					nextEntry = i;
+// 					return;
+// 				}
+// 				else if(lowOp == GTE && lowValInt <= currentNode->keyArray[i]){
+// 					nextEntry = i;
+// 					return;
+// 				}
+//     		    else if((highOp == LT and currentNode->keyArray[i] >= highValInt) or (highOp == LTE and currentNode->keyArray[i] > highValInt))
+// 				{
+// 					bufMgr->unPinPage(file, currentPageNum, false);
+// 					throw NoSuchKeyFoundException();
+// 				}
+// 			}
+// 	        //unpin page
+// 			bufMgr->unPinPage(file, currentPageNum, false);
+// 			//did not find the matching one in the most right leaf
+// 			if(currentNodeLeaf->rightSibPageNo == 0){
+
+// 				throw NoSuchKeyFoundException();
+			
+// 			}
+// 			currentPageNum = currentNodeLeaf->rightSibPageNo;
+// 			bufMgr->readPage(file, currentPageNum, currentPageData);
+// 		}
+// 	}
+// }
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::scanNext

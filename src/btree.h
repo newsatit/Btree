@@ -408,6 +408,9 @@ class BTreeIndex {
 	const void startScan(const void* lowVal, const Operator lowOp, const void* highVal, const Operator highOp);
 
 
+
+  const void findBestChild(NonLeafNodeInt *currentNode, PageId &nextNodeNum, int lowVal);
+
   /**
 	 * Fetch the record id of the next index entry that matches the scan.
 	 * Return the next record from current page being scanned. If current page has been scanned to its entirety, move on to the right sibling of current page, if any exists, to start scanning that page. Make sure to unpin any pages that are no longer required.
