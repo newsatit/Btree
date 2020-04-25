@@ -71,12 +71,6 @@ BTreeIndex::BTreeIndex(const std::string & relationName,
 		Page *metaPage;
 		bufMgr->allocPage(file, headerPageNum, metaPage);
 		std::cout << "metaPageNum: " << headerPageNum << std::endl;
-		// populate meta info with the root page num
-		IndexMetaInfo *meta = (IndexMetaInfo*)(metaPage);
-		meta->attrByteOffset = attrByteOffset;
-		meta->attrType = attributeType;
-		meta->rootPageNo = rootPageNum;
-		meta->leafRoot = true;
 
 		// allocate page for root
 		leafRoot = true; // root is the only node and is a leaf.
@@ -88,6 +82,16 @@ BTreeIndex::BTreeIndex(const std::string & relationName,
 		root->numEntries = 0;
 		root->rightSibPageNo = 0;
 		
+		// populate meta info with the root page num
+		IndexMetaInfo *meta = (IndexMetaInfo*)(metaPage);
+		meta->attrByteOffset = attrByteOffset;
+		meta->attrType = attributeType;
+		meta->rootPageNo = rootPageNum;
+		meta->leafRoot = true;
+
+		bufMgr->unPinPage(file, headerPageNum, true);
+		bufMgr->unPinPage(file, rootPageNum, false);
+
 		// scan the file with the relation data (use FileScan) and keep the entries <key, rid>		FileScan fscan(relationName, bufMgr);
 		FileScan fscan(relationName, bufMgr);
 		try
@@ -100,16 +104,13 @@ BTreeIndex::BTreeIndex(const std::string & relationName,
 				const char *record = recordStr.c_str();
 				void *key = (void*)(record + attrByteOffset);
 				insertEntry(key, scanRid);
-				std::cout << "Inserted key: " << *((int*)key) << " rid: (" << scanRid.page_number << ", " << scanRid.slot_number << ")" << std::endl;
+				// std::cout << "Inserted key: " << *((int*)key) << " rid: (" << scanRid.page_number << ", " << scanRid.slot_number << ")" << std::endl;
 			}
 		}
 		catch(EndOfFileException e)
 		{
 			std::cout << "Finish inserted all to B+ Tree records" << std::endl;
 		}
-
-		bufMgr->unPinPage(file, headerPageNum, true);
-		bufMgr->unPinPage(file, rootPageNum, false);
 	}
 }
 
@@ -390,7 +391,7 @@ const void BTreeIndex::startScan(const void* lowValParm,
 		LeafNodeInt* currentLeafRoot = (LeafNodeInt*) currentPageData;
 
 		// [1, 3, 5, 7, 12] >=5  nextEntry: 1
-		for (int i = 0; i < INTARRAYNONLEAFSIZE; i++){
+		for (int i = 0; i < INTARRAYLEAFSIZE; i++){
 
 			if (lowOp == GTE && currentLeafRoot->keyArray[i] >= lowValInt){
 				nextEntry = i;
