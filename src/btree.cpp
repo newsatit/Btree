@@ -133,7 +133,7 @@ BTreeIndex::~BTreeIndex()
 	bufMgr->unPinPage(file, headerPageNum, true);
 
 	// Unpin page that is currently scanning
-	if (currentPageNum) {
+	if (scanExecuting) {
 		bufMgr->unPinPage(file, currentPageNum, false);
 	}
 
@@ -144,28 +144,22 @@ BTreeIndex::~BTreeIndex()
 //TODO: comment
 void insertLeafArrays(const RIDKeyPair<int> ridKey, int keyArray[], RecordId ridArray[], const int numEntries) 
 {
-	// Append at the end
-	if (ridKey.key >= keyArray[numEntries - 1]) {
-		keyArray[numEntries] = ridKey.key;
-		ridArray[numEntries] = ridKey.rid;
-	// Have to shift some elements to the right
-	} else {
-		int insertIdx;
-		// Find index in keyArray to insert to
-		for (int i = 0; i < numEntries; i++) {
-			if (ridKey.key < keyArray[i]) {
-				insertIdx = i;
-			}
+	int insertIdx = numEntries; // Default, value append at the end (No shifting need)
+	// Find index in keyArray to insert to (shiting needed)
+	for (int i = 0; i < numEntries; i++) {
+		if (ridKey.key < keyArray[i]) {
+			insertIdx = i;
+			break;
 		}
-		// Shift elements to the right of it
-		for (int i = numEntries; i > insertIdx; i--) {
-			keyArray[i] = keyArray[i-1];
-			ridArray[i] = ridArray[i-1];
-		}
-		// Insert key, rid
-		keyArray[insertIdx] = ridKey.key;
-		ridArray[insertIdx] = ridKey.rid;
 	}
+	// Shift elements to the right of it
+	for (int i = numEntries; i > insertIdx; i--) {
+		keyArray[i] = keyArray[i-1];
+		ridArray[i] = ridArray[i-1];
+	}
+	// Insert key, rid
+	keyArray[insertIdx] = ridKey.key;
+	ridArray[insertIdx] = ridKey.rid;
 }
 
 // TODO: comment
