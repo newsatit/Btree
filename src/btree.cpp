@@ -191,14 +191,16 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 		LeafNodeInt *node = (LeafNodeInt*)(page);
 		
 		// Leaf Node is full
-		splitted = true;
 		if (node->numEntries == INTARRAYLEAFSIZE) {
+			splitted = true;
+			int nodeNumEntries = node->numEntries;
+
 			// Copy and insert to temporary arrays
 			int tempKeyArray[ INTARRAYLEAFSIZE + 1];
 			RecordId tempRidArray[ INTARRAYLEAFSIZE + 1];
-			std::copy(node->keyArray, node->keyArray + node->numEntries, tempKeyArray);
-			std::copy(node->ridArray, node->ridArray + node->numEntries, tempRidArray);
-			insertLeafArrays(ridKey, tempKeyArray, tempRidArray, node->numEntries);
+			std::copy(node->keyArray, node->keyArray + nodeNumEntries, tempKeyArray);
+			std::copy(node->ridArray, node->ridArray + nodeNumEntries, tempRidArray);
+			insertLeafArrays(ridKey, tempKeyArray, tempRidArray, nodeNumEntries);
 
 			// Distrubute entries to both nodes
 			// Allocate right page. Left page will used the page allocated by the original page.
@@ -207,16 +209,16 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			bufMgr->allocPage(file, propInfo.rightPageNo, rightPage);
 			LeafNodeInt *leftNode = node;
 			LeafNodeInt *rightNode = (LeafNodeInt*)(rightPage);
-			leftNode->numEntries = (node->numEntries+1-1)/2;
-			rightNode->numEntries = (node->numEntries+1-1) - leftNode->numEntries;
+			leftNode->numEntries = (nodeNumEntries+1)/2;
+			rightNode->numEntries = (nodeNumEntries+1) - leftNode->numEntries;
 			
 			//Distrubute to left page
 			std::copy(tempKeyArray, tempKeyArray + leftNode->numEntries, leftNode->keyArray);
 			std::copy(tempRidArray, tempRidArray + leftNode->numEntries, leftNode->ridArray);
 		
 			//Distrubute to right page
-			std::copy(tempKeyArray + leftNode->numEntries, tempKeyArray + node->numEntries + 1, rightNode->keyArray);
-			std::copy(tempRidArray + leftNode->numEntries, tempRidArray + node->numEntries + 1, rightNode->ridArray);
+			std::copy(tempKeyArray + leftNode->numEntries, tempKeyArray + nodeNumEntries + 1, rightNode->keyArray);
+			std::copy(tempRidArray + leftNode->numEntries, tempRidArray + nodeNumEntries + 1, rightNode->ridArray);
 
 			// Set up sibling of both page
 			rightNode->rightSibPageNo = node->rightSibPageNo;
@@ -229,6 +231,10 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			// Get rid of old page node and unpin new pages
 			bufMgr->unPinPage(file, propInfo.leftPageNo, true);
 			bufMgr->unPinPage(file, propInfo.rightPageNo, true);
+
+			leafRoot = false; // The root can never be split after a split 
+
+			std::cout << "Splitted leaf" << std::endl;
 
 		// Leaf Node is not full
 		} else {
@@ -244,11 +250,11 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 		PropogationInfo childPropInfo;
 		bool childSplitted;
 		int insertIdx;
-		childPageNo = node->keyArray[node->numEntries - 1];
+		childPageNo = node->pageNoArray[node->numEntries];
 		insertIdx = node->numEntries;
 		for (int i = 0; i < node->numEntries; i++) {
 			if (ridKey.key < node->keyArray[i]) {
-				childPageNo = node->keyArray[i];
+				childPageNo = node->pageNoArray[i];
 				insertIdx = i;
 				break;
 			}
@@ -260,11 +266,14 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 		if (childSplitted) {
 			// Nonleaf node is full
 			if (node->numEntries == INTARRAYNONLEAFSIZE) {
+			splitted = true;
+			int nodeNumEntries = node->numEntries;
+
 			// Copy and insert to temporary arrays
 			int tempKeyArray[ INTARRAYLEAFSIZE + 1];
 			PageId tempPageNoArray[ INTARRAYLEAFSIZE + 2];
-			std::copy(node->keyArray, node->keyArray + node->numEntries, tempKeyArray);
-			std::copy(node->pageNoArray, node->pageNoArray + node->numEntries + 1, tempPageNoArray);
+			std::copy(node->keyArray, node->keyArray + nodeNumEntries, tempKeyArray);
+			std::copy(node->pageNoArray, node->pageNoArray + nodeNumEntries+ 1, tempPageNoArray);
 			insertNonleafArrays(childPropInfo, insertIdx, tempKeyArray, tempPageNoArray, node->numEntries);
 
 			// Distrubute entries to both nodes
@@ -274,16 +283,16 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			bufMgr->allocPage(file, propInfo.rightPageNo, rightPage);
 			NonLeafNodeInt *leftNode = node;
 			NonLeafNodeInt *rightNode = (NonLeafNodeInt*)(rightPage);
-			leftNode->numEntries = (node->numEntries+1)/2;
-			rightNode->numEntries = (node->numEntries+1) - leftNode->numEntries;
+			leftNode->numEntries = (nodeNumEntries+1)/2;
+			rightNode->numEntries = (nodeNumEntries+1) - leftNode->numEntries;
 			
 			//Distrubute to left page
 			std::copy(tempKeyArray, tempKeyArray + leftNode->numEntries, leftNode->keyArray);
 			std::copy(tempPageNoArray, tempPageNoArray + leftNode->numEntries + 1, leftNode->pageNoArray);
 		
 			//Distrubute to right page
-			std::copy(tempKeyArray + leftNode->numEntries + 1, tempKeyArray + node->numEntries + 1, rightNode->keyArray);
-			std::copy(tempPageNoArray + leftNode->numEntries + 1, tempPageNoArray + node->numEntries + 2, rightNode->pageNoArray);
+			std::copy(tempKeyArray + leftNode->numEntries + 1, tempKeyArray + nodeNumEntries + 1, rightNode->keyArray);
+			std::copy(tempPageNoArray + leftNode->numEntries + 1, tempPageNoArray + nodeNumEntries + 2, rightNode->pageNoArray);
 
 			//Set up the levels of both pages
 			leftNode->level = childPropInfo.fromLeaf;
@@ -306,6 +315,7 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			}
 		// Child was not splitted
 		} else {
+			splitted = false; // current node is not splitted;
 			bufMgr->unPinPage(file, nodePageNo, false);
 		}
 	}
@@ -324,7 +334,7 @@ const void BTreeIndex::insertEntry(const void *key, const RecordId rid)
 
 	insertHelper(ridKey, rootPageNum, leafRoot, propInfo, splitted); // Start traversing the root page.
 
-	if (splitted) { // Have to create new root page
+	if (splitted) { // Root is splitted, Have to create new root page
 		Page *rootPage;
 		bufMgr->allocPage(file, rootPageNum, rootPage); // Allocate new root page
 		
