@@ -364,25 +364,24 @@ const void BTreeIndex::startScan(const void* lowValParm,
    const Operator highOpParm)
 {
 
-	// TODO: not sure
+	// If there is another scan pending end that scan.
 	if(scanExecuting){
-		return;
-	}
-	else{
-		scanExecuting = true;
-		lowOp = lowOpParm;
-		highOp = highOpParm;
-		lowValInt = *(int*)lowValParm;
-		highValInt = *(int*)highValParm;
-	}
-
+		endScan();
+	} 
+	
 	if ((lowOpParm != GTE && lowOpParm != GT) || (highOpParm != LT && highOpParm != LTE )){
-		throw new BadOpcodesException;
+		throw BadOpcodesException();
 	}
-
 	if (lowValInt > highValInt){
-		throw new BadScanrangeException;
-	}
+		throw BadScanrangeException();
+	} 
+
+	// Start new scan
+	scanExecuting = true;
+	lowOp = lowOpParm;
+	highOp = highOpParm;
+	lowValInt = *(int*)lowValParm;
+	highValInt = *(int*)highValParm;
 
 	// if the root node is the only node in the tree
 	if (leafRoot){
