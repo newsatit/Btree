@@ -234,7 +234,7 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 
 			leafRoot = false; // The root can never be split after a split 
 
-			std::cout << "Splitted leaf" << std::endl;
+			// std::cout << "Splitted leaf" << std::endl;
 
 		// Leaf Node is not full
 		} else {
@@ -283,8 +283,8 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			bufMgr->allocPage(file, propInfo.rightPageNo, rightPage);
 			NonLeafNodeInt *leftNode = node;
 			NonLeafNodeInt *rightNode = (NonLeafNodeInt*)(rightPage);
-			leftNode->numEntries = (nodeNumEntries+1)/2;
-			rightNode->numEntries = (nodeNumEntries+1) - leftNode->numEntries;
+			leftNode->numEntries = (nodeNumEntries+1-1)/2;
+			rightNode->numEntries = (nodeNumEntries+1-1) - leftNode->numEntries;
 			
 			//Distrubute to left page
 			std::copy(tempKeyArray, tempKeyArray + leftNode->numEntries, leftNode->keyArray);
@@ -299,12 +299,14 @@ void BTreeIndex::insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePag
 			rightNode->level = childPropInfo.fromLeaf;
 
 			// Set up necessary info for propogation
-			propInfo.middleKey = rightNode->keyArray[0];
+			propInfo.middleKey = tempKeyArray[leftNode->numEntries];
 			propInfo.fromLeaf = false;
 
 			// Get rid of old page node and unpin new pages
 			bufMgr->unPinPage(file, propInfo.leftPageNo, true);
 			bufMgr->unPinPage(file, propInfo.rightPageNo, true);
+			
+			// std::cout << "Splitted Nonleaf" << std::endl;
 
 			// Nonleaf node is not full
 			} else {
@@ -347,6 +349,8 @@ const void BTreeIndex::insertEntry(const void *key, const RecordId rid)
 		root->pageNoArray[1] = propInfo.rightPageNo;
 
 		bufMgr->unPinPage(file, rootPageNum, true);
+		
+		// std::cout << "Root splitted" << std::endl;
 	} 
 }
 
