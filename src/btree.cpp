@@ -447,7 +447,7 @@ const void BTreeIndex::startScan(const void* lowValParm,
 		LeafNodeInt* currentNodeLeaf = (LeafNodeInt*) currentPageData;
 		currentPageNum = nextId;
 
-		nextEntry = currentNodeLeaf->numEntries; // default value for the case when no value match the scan range
+		// Find the right position in leaf node.
 		for (int i = 0; i < currentNodeLeaf->numEntries; i++){
 			if(lowOp == GT && lowValInt < currentNodeLeaf->keyArray[i]){
 				nextEntry = i;
@@ -458,6 +458,9 @@ const void BTreeIndex::startScan(const void* lowValParm,
 				return;
 			}
 		}
+		// If reaches this point, no key found that matches this scan criteria
+		endScan();
+		throw NoSuchKeyFoundException();
 	}
 }
 
