@@ -372,9 +372,6 @@ const void BTreeIndex::startScan(const void* lowValParm,
 	if ((lowOpParm != GTE && lowOpParm != GT) || (highOpParm != LT && highOpParm != LTE )){
 		throw BadOpcodesException();
 	}
-	if (lowValInt > highValInt){
-		throw BadScanrangeException();
-	} 
 
 	// Start new scan
 	scanExecuting = true;
@@ -382,6 +379,11 @@ const void BTreeIndex::startScan(const void* lowValParm,
 	highOp = highOpParm;
 	lowValInt = *(int*)lowValParm;
 	highValInt = *(int*)highValParm;
+
+	if (lowValInt > highValInt){
+		scanExecuting = false;
+		throw BadScanrangeException();
+	} 
 
 	// if the root node is the only node in the tree
 	if (leafRoot){
@@ -427,7 +429,7 @@ const void BTreeIndex::startScan(const void* lowValParm,
 			PageId nextId = currentNode->pageNoArray[nextEntry];
 			bufMgr->unPinPage(file, currentPageNum, false);
 			bufMgr->readPage(file, nextId, currentPageData);
-	    currentNode = (NonLeafNodeInt*) currentPageData;
+	    	currentNode = (NonLeafNodeInt*) currentPageData;
 			currentPageNum = nextId;
 		}
 
@@ -447,7 +449,7 @@ const void BTreeIndex::startScan(const void* lowValParm,
 		LeafNodeInt* currentNodeLeaf = (LeafNodeInt*) currentPageData;
 		currentPageNum = nextId;
 
-		// Find the right position in leaf node.
+		nextEntry = currentNodeLeaf->numEntries; // default value for the case when no value match the scan range
 		for (int i = 0; i < currentNodeLeaf->numEntries; i++){
 			if(lowOp == GT && lowValInt < currentNodeLeaf->keyArray[i]){
 				nextEntry = i;
@@ -458,9 +460,6 @@ const void BTreeIndex::startScan(const void* lowValParm,
 				return;
 			}
 		}
-		// If reaches this point, no key found that matches this scan criteria
-		endScan();
-		throw NoSuchKeyFoundException();
 	}
 }
 

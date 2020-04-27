@@ -580,6 +580,8 @@ void deleteRelation()
 
 void additionalTests(BTreeIndex * index, int lowVal, Operator lowOp, int highVal, Operator highOp)
 {
+	std::cout << "\n" << "\n" << "Additional Tests \n" << "-----------------" << std::endl; ;
+
 
 	RecordId scanRid;
 	Page *curPage;
@@ -627,24 +629,21 @@ void additionalTests(BTreeIndex * index, int lowVal, Operator lowOp, int highVal
 	}
 
 	//Test for invalid relation name.
+	std::cout << "\n" << "\n";
 
 	//PageFile* fileTest = new PageFile("TestFileName", true);
 	try 
 	{
 		BTreeIndex indexTest("TestFileName", intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
-
-	    std::fstream fileStream;
-
-    	fileStream.open("TestFileName.O");
-		if(fileStream){
-			std::cout << "Test for create new index file: Test Passed" << std::endl;
-		}
+		std::cout << "Test for new relation file name: Test Passed" << std::endl;
 
 	}
 	catch (std::exception e)
 	{
-		std::cout << "Test for invalid file name: Test Passed" << std::endl;
+		std::cout << "Test for new relation file name: Failed" << std::endl;
 	}
+
+	std::cout << "\n" << "\n";
 
 	//test double opeing index file
 	try
@@ -658,5 +657,10 @@ void additionalTests(BTreeIndex * index, int lowVal, Operator lowOp, int highVal
 	{
 		std::cout << "Test opening same relation file twice: Test Failed" << std::endl;
 	}
-	
+
+	std::cout << "\n" << "\n";
+
 }
+
+
+
