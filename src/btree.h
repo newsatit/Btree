@@ -350,6 +350,29 @@ class BTreeIndex {
    */
   void insertHelper(const RIDKeyPair<int> ridKey, const PageId nodePageNo, const int nodeType,
                     PropogationInfo & propInfo, bool & splitted);
+
+  /**
+   * Helper function that will be called inside insertHelper(). Make the insertion of keyArray and ridArray in the LeafNodeInt 
+   * with rid-key pair.
+   * 
+   * @param ridKey      RIDKeyPair of the entry to be inserted.
+   * @param keyArray    keyArray to be inserted with key of ridKey.
+   * @param ridArray    ridArray to be inserted with rid of ridKey.
+   * @param numEntries  number of entries in the keyArray.
+   */
+  void insertLeafArrays(const RIDKeyPair<int> ridKey, int keyArray[], RecordId ridArray[], const int numEntries);
+
+  /**
+   * Helper function that will be called inside insertHelper(). Make the insertion of keyArray and pageNoArray in the NonLeafNodeInt 
+   * with propogation info from the child (middlekey, leftPageNo, rightPageNo after the child node was splitted)
+   * 
+   * @param propInfo    PropogationInfo from the child node (middlekey, leftPageNo, rightPageNo)
+   * @param insertIdx   Index for the middlekey to be inserted to keyArray.
+   * @param keyArray    keyArray to be inserted with middlekey.
+   * @param pageNoArray ridArray to be inserted with leftPageNo, rightPageNo.
+   * @param numEntries  number of entries in the keyArray.
+   */
+  void insertNonleafArrays(const PropogationInfo propInfo, const int insertIdx, int keyArray[], PageId pageNoArray[], const int numEntries);
 	
  public:
 

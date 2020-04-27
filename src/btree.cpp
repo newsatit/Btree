@@ -141,8 +141,7 @@ BTreeIndex::~BTreeIndex()
 	delete file;
 }
 
-//TODO: comment
-void insertLeafArrays(const RIDKeyPair<int> ridKey, int keyArray[], RecordId ridArray[], const int numEntries) 
+void BTreeIndex::insertLeafArrays(const RIDKeyPair<int> ridKey, int keyArray[], RecordId ridArray[], const int numEntries) 
 {
 	int insertIdx = numEntries; // Default, value append at the end (No shifting need)
 	// Find index in keyArray to insert to (shiting needed)
@@ -162,8 +161,7 @@ void insertLeafArrays(const RIDKeyPair<int> ridKey, int keyArray[], RecordId rid
 	ridArray[insertIdx] = ridKey.rid;
 }
 
-// TODO: comment
-void insertNonleafArrays(const PropogationInfo propInfo, const int insertIdx, 
+void BTreeIndex::insertNonleafArrays(const PropogationInfo propInfo, const int insertIdx, 
 												int keyArray[], PageId pageNoArray[], const int numEntries) 
 {
 	// Shift element to the right of insertIdx
