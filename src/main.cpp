@@ -6,6 +6,8 @@
  */
 
 #include <vector>
+#include <iostream>
+#include <fstream>
 #include "btree.h"
 #include "page.h"
 #include "filescan.h"
@@ -75,6 +77,7 @@ void test2();
 void test3();
 void errorTests();
 void deleteRelation();
+void additionalTests(BTreeIndex * index, int lowVal, Operator lowOp, int highVal, Operator highOp);
 
 int main(int argc, char **argv)
 {
@@ -376,6 +379,9 @@ void intTests()
 	checkPassFail(intScan(&index,0,GT,1,LT), 0)
 	checkPassFail(intScan(&index,300,GT,400,LT), 99)
 	checkPassFail(intScan(&index,3000,GTE,4000,LT), 1000)
+
+	// additional tests
+	additionalTests(&index,25,GT,40,LT);
 }
 
 int intScan(BTreeIndex * index, int lowVal, Operator lowOp, int highVal, Operator highOp)
@@ -570,4 +576,87 @@ void deleteRelation()
 	catch(FileNotFoundException e)
 	{
 	}
+}
+
+void additionalTests(BTreeIndex * index, int lowVal, Operator lowOp, int highVal, Operator highOp)
+{
+
+	RecordId scanRid;
+	Page *curPage;
+
+	std::cout << "Test starting scans twice without ending: ";
+	int testLow = 0;
+	int testHigh = 1000;
+	
+	try
+	{
+  		index->startScan(&testLow, lowOp, &testHigh, highOp);
+
+  		index->startScan(&lowVal, lowOp, &highVal, highOp);
+
+	}
+	catch(NoSuchKeyFoundException e)
+	{
+    	std::cout << "No Key Found satisfying the scan criteria." << std::endl;
+		return;
+	}
+	int numResults = 0;
+	while(1)
+	{
+		try
+		{
+			index->scanNext(scanRid);
+			bufMgr->readPage(file1, scanRid.page_number, curPage);
+			RECORD myRec = *(reinterpret_cast<const RECORD*>(curPage->getRecord(scanRid).data()));
+			bufMgr->unPinPage(file1, scanRid.page_number, false);
+
+		}
+		catch(IndexScanCompletedException e)
+		{
+			break;
+		}
+
+		numResults++;
+	}
+	// Check to make sure that correct scan gets completed
+	if (numResults != 14){
+		std::cout << "wrong scan completed: Fail" << std::endl;
+	}
+	else {
+		std::cout << "Passed" << std::endl;
+	}
+
+	//Test for invalid relation name.
+
+	//PageFile* fileTest = new PageFile("TestFileName", true);
+	try 
+	{
+		BTreeIndex indexTest("TestFileName", intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
+
+	    std::fstream fileStream;
+
+    	fileStream.open("TestFileName.O");
+		if(fileStream){
+			std::cout << "Test for create new index file: Test Passed" << std::endl;
+		}
+
+	}
+	catch (std::exception e)
+	{
+		std::cout << "Test for invalid file name: Test Passed" << std::endl;
+	}
+
+	//test double opeing index file
+	try
+	{
+		BTreeIndex index2(relationName, intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
+		BTreeIndex index3(relationName, intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
+		std::cout << "Test opening same relation file twice: Test Passed" << std::endl;
+		
+	}
+	catch(std::exception& e)
+	{
+		std::cout << "Test opening same relation file twice: Test Failed" << std::endl;
+	}
+	
 }
