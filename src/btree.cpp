@@ -441,23 +441,36 @@ const void BTreeIndex::startScan(const void* lowValParm,
 					break;
 				}
 		}
-
-		//unpin old page and read new leaf page
 		PageId nextId = currentNode->pageNoArray[nextEntry];
-		bufMgr->unPinPage(file, currentPageNum, false);
-		bufMgr->readPage(file, nextId, currentPageData);
-		LeafNodeInt* currentNodeLeaf = (LeafNodeInt*) currentPageData;
-		currentPageNum = nextId;
 
-		nextEntry = currentNodeLeaf->numEntries; // default value for the case when no value match the scan range
-		for (int i = 0; i < currentNodeLeaf->numEntries; i++){
-			if(lowOp == GT && lowValInt < currentNodeLeaf->keyArray[i]){
-				nextEntry = i;
-				return;
+		bool found = false;
+		while(!found){
+			//unpin old page and read new leaf page
+			bufMgr->unPinPage(file, currentPageNum, false);
+			bufMgr->readPage(file, nextId, currentPageData);
+			LeafNodeInt* currentNodeLeaf = (LeafNodeInt*) currentPageData;
+			currentPageNum = nextId;
+
+			nextEntry = currentNodeLeaf->numEntries; // default value for the case when no value match the scan range
+			for (int i = 0; i < currentNodeLeaf->numEntries; i++){
+				if(lowOp == GT && lowValInt < currentNodeLeaf->keyArray[i]){
+					nextEntry = i;
+					return;
+				}
+				else if(lowOp == GTE && lowValInt <= currentNodeLeaf->keyArray[i]){
+					nextEntry = i;
+					return;
+				}
 			}
-			else if(lowOp == GTE && lowValInt <= currentNodeLeaf->keyArray[i]){
-				nextEntry = i;
-				return;
+
+			if(currentNodeLeaf->rightSibPageNo == 0){
+				// If reaches this point, no key found that matches this scan criteria
+				endScan();
+				throw NoSuchKeyFoundException();
+			}
+			else {
+				//Assign next node to the sibling of current leaf node
+				nextId = currentNodeLeaf->rightSibPageNo;
 			}
 		}
 	}
