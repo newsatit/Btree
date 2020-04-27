@@ -645,7 +645,7 @@ void additionalTests(BTreeIndex * index, int lowVal, Operator lowOp, int highVal
 
 	std::cout << "\n" << "\n";
 
-	//test double opeing index file
+	//test double opening index file
 	try
 	{
 		BTreeIndex index2(relationName, intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
@@ -678,42 +678,40 @@ void additionalTests(BTreeIndex * index, int lowVal, Operator lowOp, int highVal
     catch(BadScanrangeException e)
     {
         std::cout << "Test Passed: Caught negative high value." << std::endl;
-        return;
     }
 	
     // Bad opcode test
     try
     {
-		testLowVal = 1;
-		testHighVal = 200;
-        // create index
-        BTreeIndex index4(relationName, intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
-        // high value
-        index4.startScan(&testLowVal, lowOp, &testHighVal, highOp);
-        std::cout << "Test Failed: Didn't catch bad opcode" << std::endl;
 
-    }
-    catch(BadScanrangeException e)
-    {
-        std::cout << "Test Passed: Caught bad opcode." << std::endl;
-        return;
-    }
-    // Bad opcode test
-    try
-    {
-		testLowVal = 1;
+        testLowVal = 1;
 		testHighVal = 200;
         // create index
         BTreeIndex index5(relationName, intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
         // high value
-        index5.startScan(&testLowVal, GT, &testHighVal, GT);
+        index5.startScan(&testLowVal, LT, &testHighVal, LT);
         std::cout << "Test Failed: Didn't catch bad opcode" << std::endl;
 
     }
     catch(BadOpcodesException e)
     {
         std::cout << "Test Passed: Caught bad opcode." << std::endl;
-        return;
+    }
+    // Bad opcode test
+    try
+    {
+        testLowVal = 1;
+		testHighVal = 200;
+        // create index
+        BTreeIndex index6(relationName, intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
+        // high value
+        index6.startScan(&testLowVal, GT, &testHighVal, GT);
+        std::cout << "Test Failed: Didn't catch bad opcode" << std::endl;
+
+    }
+    catch(BadOpcodesException e)
+    {
+        std::cout << "Test Passed: Caught bad opcode." << std::endl;
     }
 
 }
