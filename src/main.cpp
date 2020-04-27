@@ -660,7 +660,23 @@ void additionalTests(BTreeIndex * index, int lowVal, Operator lowOp, int highVal
 
 	std::cout << "\n" << "\n";
 
+	//Test no valid number
 
+	testLow = 9999;
+	testHigh = 9999;
+	
+	try
+	{
+  		index->startScan(&testLow, GTE, &testHigh, LTE);
+  		std::cout << "Test no valid key in tree: Test Failed" << std::endl;
+
+	} catch(NoSuchKeyFoundException e){
+		// No valid key inserted with value 9999
+		std::cout << "Test no valid key in tree: Test Passed" << std::endl;
+
+	}
+
+	std::cout << "\n" << "\n";
 
 
     // Bad range test: negative high val
