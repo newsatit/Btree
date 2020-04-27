@@ -659,6 +659,51 @@ void additionalTests(BTreeIndex * index, int lowVal, Operator lowOp, int highVal
 	}
 
 	std::cout << "\n" << "\n";
+    // Bad range test: negative high val
+    try
+    {
+        // create index
+        BTreeIndex index4(relationName, intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
+        // high value
+        index4->startScan(1, lowOp, -3, highOp);
+        std::cout << "Test Failed: Didn't catch negative high value" << std::endl;
+
+    }
+    catch(BadScanrangeException e)
+    {
+        std::cout << "Test Passed: Caught negative high value." << std::endl;
+        return;
+    }
+    // Bad opcode test
+    try
+    {
+        // create index
+        BTreeIndex index4(relationName, intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
+        // high value
+        index4->startScan(1, LT, 200, LT);
+        std::cout << "Test Failed: Didn't catch bad opcode" << std::endl;
+
+    }
+    catch(BadScanrangeException e)
+    {
+        std::cout << "Test Passed: Caught bad opcode." << std::endl;
+        return;
+    }
+    // Bad opcode test
+    try
+    {
+        // create index
+        BTreeIndex index5(relationName, intIndexName, bufMgr, offsetof(tuple,i), INTEGER);
+        // high value
+        index4->startScan(1, GT, 200, GT);
+        std::cout << "Test Failed: Didn't catch bad opcode" << std::endl;
+
+    }
+    catch(BadOpcodesException e)
+    {
+        std::cout << "Test Passed: Caught bad opcode." << std::endl;
+        return;
+    }
 
 }
 
